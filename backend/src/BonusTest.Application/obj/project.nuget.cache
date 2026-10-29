@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "ZjlmoCGl7Xg=",
+  "success": true,
+  "projectFilePath": "C:\\Learning\\Medical\\Prueba Tecnica\\backend\\src\\BonusTest.Application\\BonusTest.Application.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Abel\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\10.0.13\\microsoft.extensions.dependencyinjection.abstractions.10.0.13.nupkg.sha512"
+  ],
+  "logs": []
+}
