@@ -1,0 +1,8 @@
+# =========================
+# .NET
+# =========================
+# Excluir carpetas de compilación de .NET
+**/bin/
+**/obj/
+src/**/obj/
+src/**/bin/
