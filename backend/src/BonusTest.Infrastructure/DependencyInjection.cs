@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using BonusTest.Application.Catalogs;
 using BonusTest.Infrastructure.Persistence;
 using BonusTest.Infrastructure.Repositories;
+using BonusTest.Application.Bonuses;
 
 namespace BonusTest.Infrastructure;
 
@@ -17,6 +18,7 @@ public static class DependencyInjection
         services.AddScoped<ICatalogRepository, CatalogRepository>();
 
         // registra aquí los repositorios del módulo de bonos.
+        services.AddScoped<IBonusRepository, BonusRepository>();
 
         return services;
     }
