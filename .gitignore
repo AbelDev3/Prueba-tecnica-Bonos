@@ -1,8 +1,23 @@
-# =========================
-# .NET
-# =========================
 # Excluir carpetas de compilación de .NET
 **/bin/
 **/obj/
 src/**/obj/
 src/**/bin/
+
+# Visual Studio
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Angular
+**/node_modules/
+**/dist/
+.angular/
+
+# Archivos locales
+.env
+.env.*
+
+# Logs
+*.log
