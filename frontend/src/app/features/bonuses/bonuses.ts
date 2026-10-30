@@ -282,8 +282,7 @@ export class Bonuses {
         bonusTypeId: Number(form.bonusTypeId),
         bonusValue: Number(form.bonusValue),
         reasonCode: form.reasonCode
-      },
-      'ADMIN'
+      }
     ).subscribe({
       next: response => {
         this.savingBonus.set(false);

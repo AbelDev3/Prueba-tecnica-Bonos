@@ -46,34 +46,24 @@ export class BonusApi {
   }
 
   createBonus(
-    request: CreateBonusRequest,
-    userCode: string
+    request: CreateBonusRequest
   ): Observable<CreateBonusResponse> {
     return this.http.post<CreateBonusResponse>(
       this.baseUrl,
-      request,
-      {
-        headers: { UserCode: userCode }
-      }
+      request
     );
   }
 
-  cancelBonus(bonusId: number, userCode: string): Observable<void> {
+  cancelBonus(bonusId: number): Observable<void> {
     return this.http.put<void>(
       `${this.baseUrl}/${bonusId}/cancel`,
-      null,
-      {
-        headers: { UserCode: userCode }
-      }
+      null
     );
   }
 
-  deleteBonus(bonusId: number, userCode: string): Observable<void> {
+  deleteBonus(bonusId: number): Observable<void> {
     return this.http.delete<void>(
-      `${this.baseUrl}/${bonusId}`,
-      {
-        headers: { UserCode: userCode }
-      }
+      `${this.baseUrl}/${bonusId}`
     );
   }
 
