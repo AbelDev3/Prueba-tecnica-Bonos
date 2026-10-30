@@ -41,3 +41,13 @@ export interface CreateBonusResponse {
   taxAmount: number;
   netAmount: number;
 }
+
+export interface BonusEmployee {
+  departmentCode: string;
+  employeeNumber: number;
+  fullName: string;
+  hireDate: string;
+  monthlySalary: number;
+  taxRate: number;
+}
+

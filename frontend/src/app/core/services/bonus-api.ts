@@ -8,7 +8,8 @@ import {
   Bonus,
   BonusFilter,
   CreateBonusRequest,
-  CreateBonusResponse
+  CreateBonusResponse,
+  BonusEmployee
 } from '../models/bonus';
 import { PagedResponse } from '../models/paged-response';
 
@@ -75,4 +76,14 @@ export class BonusApi {
       }
     );
   }
+
+  getEmployee(
+    departmentCode: string,
+    employeeNumber: number
+  ): Observable<BonusEmployee> {
+    return this.http.get<BonusEmployee>(
+      `${this.baseUrl}/employee/${encodeURIComponent(departmentCode)}/${employeeNumber}`
+    );
+  }
+
 }
