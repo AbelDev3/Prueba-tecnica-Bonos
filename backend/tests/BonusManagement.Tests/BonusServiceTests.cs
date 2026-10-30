@@ -663,5 +663,278 @@ public class BonusServiceTests
         );
     }
 
+    
+    [Fact]
+    public async Task CreateAsync_PeriodoFuturo_LanzaBusinessException()
+    {
+        // Arrange
+        var repositoryMock = new Mock<IBonusRepository>();
+        var service = new BonusService(repositoryMock.Object);
+
+        // Siempre seleccionamos el mes siguiente.
+        var futurePeriod = DateTime.Today
+            .AddMonths(1)
+            .ToString("yyyy-MM");
+
+        var request = new CreateBonusRequest(
+            DepartmentCode: "TECH1",
+            EmployeeNumber: 101,
+            Period: futurePeriod,
+            BonusTypeId: 1,
+            BonusValue: 500m,
+            ReasonCode: "000001"
+        );
+
+        // Act
+        var exception = await Assert.ThrowsAsync<
+            BonusTest.Domain.Exceptions.BusinessException>(
+            () => service.CreateAsync(
+                request,
+                "abel.alvarado",
+                CancellationToken.None
+            )
+        );
+
+        // Assert
+        Assert.Equal("FUTURE_PERIOD", exception.Code);
+
+        // No debe consultar empleados.
+        repositoryMock.Verify(
+            r => r.GetEmployeeAsync(
+                It.IsAny<string>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()
+            ),
+            Times.Never
+        );
+
+        // No debe registrar bonos.
+        repositoryMock.Verify(
+            r => r.AddAsync(
+                It.IsAny<Bonus>(),
+                It.IsAny<CancellationToken>()
+            ),
+            Times.Never
+        );
+
+        repositoryMock.Verify(
+            r => r.SaveChangesAsync(
+                It.IsAny<CancellationToken>()
+            ),
+            Times.Never
+        );
+    }
+
+    
+    [Fact]
+    public async Task CreateAsync_BonoFijoSuperaSueldo_LanzaBusinessException()
+    {
+        // Arrange
+        var employee = new Employee
+        {
+            DepartmentCode = "TECH1",
+            EmployeeNumber = 101,
+            FullName = "Andrea Torres Vega",
+            HireDate = new DateTime(2020, 1, 15),
+            MonthlySalary = 5000m,
+            TaxRate = 8m,
+            EmployeeStateCode = "0101"
+        };
+
+        var repositoryMock = new Mock<IBonusRepository>();
+
+        repositoryMock
+            .Setup(r => r.GetEmployeeAsync(
+                "TECH1",
+                101,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(employee);
+
+        var service = new BonusService(repositoryMock.Object);
+
+        var request = new CreateBonusRequest(
+            DepartmentCode: "TECH1",
+            EmployeeNumber: 101,
+            Period: DateTime.Today.ToString("yyyy-MM"),
+            BonusTypeId: 1,
+            BonusValue: 6000m,
+            ReasonCode: "000001"
+        );
+
+        // Act
+        var exception = await Assert.ThrowsAsync<
+            BonusTest.Domain.Exceptions.BusinessException>(
+            () => service.CreateAsync(
+                request,
+                "abel.alvarado",
+                CancellationToken.None
+            )
+        );
+
+        // Assert
+        Assert.Equal("BONUS_EXCEEDS_SALARY", exception.Code);
+
+        // No debe consultar motivos ni registrar bonos.
+        repositoryMock.Verify(
+            r => r.IsActiveReasonAsync(
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()
+            ),
+            Times.Never
+        );
+
+        repositoryMock.Verify(
+            r => r.AddAsync(
+                It.IsAny<Bonus>(),
+                It.IsAny<CancellationToken>()
+            ),
+            Times.Never
+        );
+
+        repositoryMock.Verify(
+            r => r.SaveChangesAsync(
+                It.IsAny<CancellationToken>()
+            ),
+            Times.Never
+        );
+    }
+
+    
+    [Fact]
+    public async Task CreateAsync_PorcentajeMayorA100_LanzaBusinessException()
+    {
+        // Arrange
+        var employee = new Employee
+        {
+            DepartmentCode = "TECH1",
+            EmployeeNumber = 101,
+            FullName = "Andrea Torres Vega",
+            HireDate = new DateTime(2020, 1, 15),
+            MonthlySalary = 5000m,
+            TaxRate = 8m,
+            EmployeeStateCode = "0101"
+        };
+
+        var repositoryMock = new Mock<IBonusRepository>();
+
+        repositoryMock
+            .Setup(r => r.GetEmployeeAsync(
+                "TECH1",
+                101,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(employee);
+
+        var service = new BonusService(repositoryMock.Object);
+
+        var request = new CreateBonusRequest(
+            DepartmentCode: "TECH1",
+            EmployeeNumber: 101,
+            Period: DateTime.Today.ToString("yyyy-MM"),
+            BonusTypeId: 2,
+            BonusValue: 120m,
+            ReasonCode: "000001"
+        );
+
+        // Act
+        var exception = await Assert.ThrowsAsync<
+            BonusTest.Domain.Exceptions.BusinessException>(
+            () => service.CreateAsync(
+                request,
+                "abel.alvarado",
+                CancellationToken.None
+            )
+        );
+
+        // Assert
+        Assert.Equal("INVALID_PERCENTAGE", exception.Code);
+
+        // La operación debe detenerse antes de validar motivos.
+        repositoryMock.Verify(
+            r => r.IsActiveReasonAsync(
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()
+            ),
+            Times.Never
+        );
+
+        // No debe registrar el bono.
+        repositoryMock.Verify(
+            r => r.AddAsync(
+                It.IsAny<Bonus>(),
+                It.IsAny<CancellationToken>()
+            ),
+            Times.Never
+        );
+
+        repositoryMock.Verify(
+            r => r.SaveChangesAsync(
+                It.IsAny<CancellationToken>()
+            ),
+            Times.Never
+        );
+    }
+
+    
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task CreateAsync_UsuarioInvalido_LanzaBusinessException(
+        string? userCode)
+    {
+        // Arrange
+        var repositoryMock = new Mock<IBonusRepository>();
+        var service = new BonusService(repositoryMock.Object);
+
+        var request = new CreateBonusRequest(
+            DepartmentCode: "TECH1",
+            EmployeeNumber: 101,
+            Period: DateTime.Today.ToString("yyyy-MM"),
+            BonusTypeId: 1,
+            BonusValue: 500m,
+            ReasonCode: "000001"
+        );
+
+        // Act
+        var exception = await Assert.ThrowsAsync<
+            BonusTest.Domain.Exceptions.BusinessException>(
+            () => service.CreateAsync(
+                request,
+                userCode!,
+                CancellationToken.None
+            )
+        );
+
+        // Assert
+        Assert.Equal("USER_REQUIRED", exception.Code);
+
+        // No debe consultar información del empleado.
+        repositoryMock.Verify(
+            r => r.GetEmployeeAsync(
+                It.IsAny<string>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()
+            ),
+            Times.Never
+        );
+
+        // No debe intentar registrar el bono.
+        repositoryMock.Verify(
+            r => r.AddAsync(
+                It.IsAny<Bonus>(),
+                It.IsAny<CancellationToken>()
+            ),
+            Times.Never
+        );
+
+        // No debe persistir cambios.
+        repositoryMock.Verify(
+            r => r.SaveChangesAsync(
+                It.IsAny<CancellationToken>()
+            ),
+            Times.Never
+        );
+    }
+
 
 }
