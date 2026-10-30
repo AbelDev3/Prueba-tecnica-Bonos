@@ -408,5 +408,260 @@ public class BonusServiceTests
         );
     }
 
+    
+    [Fact]
+    public async Task CancelAsync_BonoRegistrado_CancelaYRegistraAuditoria()
+    {
+        // Arrange
+        var bonus = new Bonus
+        {
+            BonusId = 10,
+            DepartmentCode = "TECH1",
+            EmployeeNumber = 101,
+            Period = "2026-07",
+            BonusTypeId = 1,
+            BonusValue = 500m,
+            ReasonCode = "000001",
+            GrossAmount = 500m,
+            TaxAmount = 40m,
+            NetAmount = 460m,
+            StateCode = "0201",
+            IsDeleted = false,
+            CreatedBy = "candidato",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var repositoryMock = new Mock<IBonusRepository>();
+
+        repositoryMock
+            .Setup(r => r.GetByIdAsync(
+                10,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(bonus);
+
+        repositoryMock
+            .Setup(r => r.SaveChangesAsync(
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+
+        var service = new BonusService(repositoryMock.Object);
+
+        // Act
+        await service.CancelAsync(
+            10,
+            "abel.alvarado",
+            CancellationToken.None
+        );
+
+        // Assert
+        Assert.Equal("0203", bonus.StateCode);
+        Assert.Equal("abel.alvarado", bonus.ModifiedBy);
+        Assert.NotNull(bonus.ModifiedAt);
+        Assert.False(bonus.IsDeleted);
+
+        repositoryMock.Verify(
+            r => r.SaveChangesAsync(
+                It.IsAny<CancellationToken>()
+            ),
+            Times.Once
+        );
+    }
+
+    
+    [Fact]
+    public async Task DeleteAsync_BonoRegistrado_RealizaEliminacionLogica()
+    {
+        // Arrange
+        var bonus = new Bonus
+        {
+            BonusId = 11,
+            DepartmentCode = "TECH1",
+            EmployeeNumber = 101,
+            Period = "2026-07",
+            BonusTypeId = 1,
+            BonusValue = 500m,
+            ReasonCode = "000001",
+            GrossAmount = 500m,
+            TaxAmount = 40m,
+            NetAmount = 460m,
+            StateCode = "0201",
+            IsDeleted = false,
+            CreatedBy = "candidato",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var repositoryMock = new Mock<IBonusRepository>();
+
+        repositoryMock
+            .Setup(r => r.GetByIdAsync(
+                11,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(bonus);
+
+        repositoryMock
+            .Setup(r => r.SaveChangesAsync(
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+
+        var service = new BonusService(repositoryMock.Object);
+
+        // Act
+        await service.DeleteAsync(
+            11,
+            "abel.alvarado",
+            CancellationToken.None
+        );
+
+        // Assert: eliminación lógica
+        Assert.True(bonus.IsDeleted);
+
+        // El estado original se conserva.
+        Assert.Equal("0201", bonus.StateCode);
+
+        // Auditoría
+        Assert.Equal("abel.alvarado", bonus.ModifiedBy);
+        Assert.NotNull(bonus.ModifiedAt);
+
+        // No se crea un nuevo registro.
+        repositoryMock.Verify(
+            r => r.AddAsync(
+                It.IsAny<Bonus>(),
+                It.IsAny<CancellationToken>()
+            ),
+            Times.Never
+        );
+
+        // Se persisten los cambios una sola vez.
+        repositoryMock.Verify(
+            r => r.SaveChangesAsync(
+                It.IsAny<CancellationToken>()
+            ),
+            Times.Once
+        );
+    }
+
+    
+    [Fact]
+    public async Task CancelAsync_BonoYaCancelado_LanzaBusinessException()
+    {
+        // Arrange
+        var bonus = new Bonus
+        {
+            BonusId = 12,
+            DepartmentCode = "TECH1",
+            EmployeeNumber = 101,
+            Period = "2026-07",
+            BonusTypeId = 1,
+            BonusValue = 500m,
+            ReasonCode = "000001",
+            GrossAmount = 500m,
+            TaxAmount = 40m,
+            NetAmount = 460m,
+            StateCode = "0203",
+            IsDeleted = false,
+            CreatedBy = "candidato",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var repositoryMock = new Mock<IBonusRepository>();
+
+        repositoryMock
+            .Setup(r => r.GetByIdAsync(
+                12,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(bonus);
+
+        var service = new BonusService(repositoryMock.Object);
+
+        // Act
+        var exception = await Assert.ThrowsAsync<
+            BonusTest.Domain.Exceptions.BusinessException>(
+            () => service.CancelAsync(
+                12,
+                "abel.alvarado",
+                CancellationToken.None
+            )
+        );
+
+        // Assert
+        Assert.Equal("INVALID_BONUS_STATE", exception.Code);
+
+        // El estado no debe modificarse.
+        Assert.Equal("0203", bonus.StateCode);
+
+        // No debe registrar cambios.
+        repositoryMock.Verify(
+            r => r.SaveChangesAsync(
+                It.IsAny<CancellationToken>()
+            ),
+            Times.Never
+        );
+    }
+
+    
+    [Fact]
+    public async Task DeleteAsync_BonoCancelado_LanzaBusinessException()
+    {
+        // Arrange
+        var bonus = new Bonus
+        {
+            BonusId = 13,
+            DepartmentCode = "TECH1",
+            EmployeeNumber = 101,
+            Period = "2026-07",
+            BonusTypeId = 1,
+            BonusValue = 500m,
+            ReasonCode = "000001",
+            GrossAmount = 500m,
+            TaxAmount = 40m,
+            NetAmount = 460m,
+            StateCode = "0203",
+            IsDeleted = false,
+            CreatedBy = "candidato",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var repositoryMock = new Mock<IBonusRepository>();
+
+        repositoryMock
+            .Setup(r => r.GetByIdAsync(
+                13,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(bonus);
+
+        var service = new BonusService(repositoryMock.Object);
+
+        // Act
+        var exception = await Assert.ThrowsAsync<
+            BonusTest.Domain.Exceptions.BusinessException>(
+            () => service.DeleteAsync(
+                13,
+                "abel.alvarado",
+                CancellationToken.None
+            )
+        );
+
+        // Assert: operación rechazada
+        Assert.Equal("INVALID_BONUS_STATE", exception.Code);
+
+        // El bono conserva su estado.
+        Assert.Equal("0203", bonus.StateCode);
+
+        // No debe marcarse como eliminado.
+        Assert.False(bonus.IsDeleted);
+
+        // No debe modificar los datos de auditoría.
+        Assert.Null(bonus.ModifiedBy);
+        Assert.Null(bonus.ModifiedAt);
+
+        // No debe persistir cambios.
+        repositoryMock.Verify(
+            r => r.SaveChangesAsync(
+                It.IsAny<CancellationToken>()
+            ),
+            Times.Never
+        );
+    }
+
 
 }
