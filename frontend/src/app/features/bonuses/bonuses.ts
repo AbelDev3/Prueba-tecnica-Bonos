@@ -164,6 +164,7 @@ export class Bonuses {
   protected readonly saveError = signal('');
 
   protected readonly cancellingBonusId = signal<number | null>(null);
+  protected readonly deletingBonusId = signal<number | null>(null);
 
   constructor() {
     this.loadBonuses();
@@ -340,6 +341,49 @@ export class Bonuses {
       }
     });
   }
+  
+  protected deleteBonus(bonus: Bonus): void {
+    if (
+      bonus.stateCode !== '0201' ||
+      this.deletingBonusId() !== null ||
+      this.cancellingBonusId() !== null
+    ) {
+      return;
+    }
 
+    const confirmed = window.confirm(
+      `¿Estás seguro de eliminar el bono N.º ${bonus.bonusId}?\n\n` +
+      'El bono dejará de aparecer en el listado, ' +
+      'pero permanecerá registrado en la base de datos.'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.deletingBonusId.set(bonus.bonusId);
+
+    this.bonusApi.deleteBonus(bonus.bonusId).subscribe({
+      next: () => {
+        this.deletingBonusId.set(null);
+
+        // Si se eliminó el único registro de una página,
+        // retrocedemos para evitar una página vacía.
+        if (this.bonuses().length === 1 && this.pageNumber() > 1) {
+          this.pageNumber.update(page => page - 1);
+        }
+
+        this.loadBonuses();
+
+        window.alert(
+          `El bono N.º ${bonus.bonusId} fue eliminado correctamente.`
+        );
+      },
+      error: () => {
+        this.deletingBonusId.set(null);
+        // El interceptor HTTP ya muestra los errores.
+      }
+    });
+  }
 
 }

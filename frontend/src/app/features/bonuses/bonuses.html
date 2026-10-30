@@ -116,13 +116,24 @@
                       : 'Cancelar'
                   }}
                 </button>
-
+                          
                 <button
                   type="button"
                   class="action-button delete-button"
-                  title="Eliminar bono">
-                  Eliminar
+                  (click)="deleteBonus(bonus)"
+                  [disabled]="
+                    bonus.stateCode !== '0201' ||
+                    deletingBonusId() !== null ||
+                    cancellingBonusId() !== null
+                  "
+                  [title]="'Eliminar bono N.º ' + bonus.bonusId">
+                  {{
+                    deletingBonusId() === bonus.bonusId
+                      ? 'Eliminando...'
+                      : 'Eliminar'
+                  }}
                 </button>
+
               </td>
 
             </tr>
