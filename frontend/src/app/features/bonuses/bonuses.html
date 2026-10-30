@@ -82,6 +82,7 @@
             <th>Impuesto</th>
             <th>Neto</th>
             <th>Estado</th>
+            <th>Acciones</th>
           </tr>
         </thead>
 
@@ -100,6 +101,30 @@
               <td>{{ bonus.taxAmount | number:'1.2-2' }}</td>
               <td>{{ bonus.netAmount | number:'1.2-2' }}</td>
               <td>{{ bonus.stateCode }}</td>
+              
+              <td class="actions-cell">
+                
+                <button
+                  type="button"
+                  class="action-button cancel-button"
+                  (click)="cancelBonus(bonus)"
+                  [disabled]="bonus.stateCode !== '0201' || cancellingBonusId() !== null"
+                  [title]="'Cancelar bono N.º ' + bonus.bonusId">
+                  {{
+                    cancellingBonusId() === bonus.bonusId
+                      ? 'Cancelando...'
+                      : 'Cancelar'
+                  }}
+                </button>
+
+                <button
+                  type="button"
+                  class="action-button delete-button"
+                  title="Eliminar bono">
+                  Eliminar
+                </button>
+              </td>
+
             </tr>
           } @empty {
             <tr>

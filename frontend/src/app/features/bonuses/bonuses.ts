@@ -163,6 +163,8 @@ export class Bonuses {
   protected readonly savingBonus = signal(false);
   protected readonly saveError = signal('');
 
+  protected readonly cancellingBonusId = signal<number | null>(null);
+
   constructor() {
     this.loadBonuses();
   }
@@ -300,6 +302,41 @@ export class Bonuses {
           error.error?.description ??
           'No se pudo registrar el bono.'
         );
+      }
+    });
+  }
+  
+  protected cancelBonus(bonus: Bonus): void {
+    if (
+      bonus.stateCode !== '0201' ||
+      this.cancellingBonusId() !== null
+    ) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `¿Estás seguro de cancelar el bono N.º ${bonus.bonusId}?\n\n` +
+      'Esta operación cambiará su estado a Cancelado.'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.cancellingBonusId.set(bonus.bonusId);
+
+    this.bonusApi.cancelBonus(bonus.bonusId).subscribe({
+      next: () => {
+        this.cancellingBonusId.set(null);
+        this.loadBonuses();
+
+        window.alert(
+          `El bono N.º ${bonus.bonusId} fue cancelado correctamente.`
+        );
+      },
+      error: () => {
+        this.cancellingBonusId.set(null);
+        // El interceptor HTTP ya muestra los errores de la API.
       }
     });
   }

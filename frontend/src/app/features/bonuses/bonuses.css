@@ -288,3 +288,43 @@
   color: #1d4ed8;
 }
 
+
+.actions-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.action-button {
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.cancel-button {
+  color: #92400e;
+  border-color: #fcd34d;
+}
+
+.cancel-button:hover:not(:disabled) {
+  background-color: #fffbeb;
+}
+
+.delete-button {
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.delete-button:hover:not(:disabled) {
+  background-color: #fef2f2;
+}
+
+.action-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
