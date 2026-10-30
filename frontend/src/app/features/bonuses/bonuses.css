@@ -259,3 +259,32 @@
     grid-template-columns: 1fr;
   }
 }
+
+.bonus-summary {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #dbe4ee;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.bonus-summary h4 {
+  margin: 0 0 16px;
+  color: #1e293b;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.summary-total {
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid #cbd5e1;
+  font-size: 1.05rem;
+  color: #1d4ed8;
+}
+

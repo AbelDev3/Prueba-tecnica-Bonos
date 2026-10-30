@@ -216,7 +216,7 @@
                 <option [ngValue]="0">Seleccione un tipo</option>
                 @for (type of bonusTypes(); track type.bonusTypeId) {
                   <option [ngValue]="type.bonusTypeId">
-                    {{ type.bonusTypeName }}
+                    {{ type.bonusTypeDescription }}
                   </option>
                 }
               </select>
@@ -244,6 +244,34 @@
               </select>
             </label>
           </div>
+          
+          @if (employee()) {
+            <div class="bonus-summary">
+              <h4>Resumen del bono</h4>
+
+              <div class="summary-row">
+                <span>Bono bruto</span>
+                <strong>
+                  S/ {{ calculatedAmounts().gross | number:'1.2-2' }}
+                </strong>
+              </div>
+
+              <div class="summary-row">
+                <span>Impuesto</span>
+                <strong>
+                  S/ {{ calculatedAmounts().tax | number:'1.2-2' }}
+                </strong>
+              </div>
+
+              <div class="summary-row summary-total">
+                <span>Bono neto</span>
+                <strong>
+                  S/ {{ calculatedAmounts().net | number:'1.2-2' }}
+                </strong>
+              </div>
+            </div>
+          }
+
         </div>
 
         <footer class="modal-footer">
@@ -251,9 +279,13 @@
             Cancelar
           </button>
 
-          <button type="button" class="btn btn-primary" disabled>
+          <button
+            type="button"
+            class="btn btn-primary"
+            [disabled]="!canSaveBonus()">
             Guardar bono
           </button>
+          
         </footer>
       </form>
     </section>

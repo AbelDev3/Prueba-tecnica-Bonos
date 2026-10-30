@@ -1,5 +1,5 @@
 
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 
@@ -70,6 +70,94 @@ export class Bonuses {
     bonusTypeId: [0, [Validators.required, Validators.min(1)]],
     bonusValue: [0, [Validators.required, Validators.min(0.01)]],
     reasonCode: ['', Validators.required]
+  });
+
+  
+  private readonly formValues = toSignal(
+    this.bonusForm.valueChanges,
+    { initialValue: this.bonusForm.getRawValue() }
+  );
+
+  private roundMoney(value: number): number {
+    return Math.round((value + Number.EPSILON) * 100) / 100;
+  }
+
+  protected readonly calculatedAmounts = computed(() => {
+    const employee = this.employee();
+    const form = this.formValues();
+
+    if (!employee || !form) {
+      return { gross: 0, tax: 0, net: 0 };
+    }
+
+    const typeId = Number(form.bonusTypeId);
+    const value = Number(form.bonusValue);
+
+    if (
+      !Number.isFinite(value) ||
+      value <= 0 ||
+      (typeId !== 1 && typeId !== 2) ||
+      (typeId === 1 && value > employee.monthlySalary) ||
+      (typeId === 2 && value > 100)
+    ) {
+      return { gross: 0, tax: 0, net: 0 };
+    }
+
+    const gross = this.roundMoney(
+      typeId === 1
+        ? value
+        : employee.monthlySalary * value / 100
+    );
+
+    const tax = this.roundMoney(
+      gross * employee.taxRate / 100
+    );
+
+    const net = this.roundMoney(gross - tax);
+
+    return { gross, tax, net };
+  });
+
+  
+  protected readonly canSaveBonus = computed(() => {
+    const emp = this.employee();
+    const form = this.formValues();
+
+    if (!emp || !form || this.bonusForm.invalid) {
+      return false;
+    }
+
+    const typeId = Number(form.bonusTypeId);
+    const value = Number(form.bonusValue);
+
+    if (!Number.isFinite(value) || value <= 0) {
+      return false;
+    }
+
+    if (typeId === 1 && value > emp.monthlySalary) {
+      return false;
+    }
+
+    if (typeId === 2 && value > 100) {
+      return false;
+    }
+
+    if (typeId !== 1 && typeId !== 2) {
+      return false;
+    }
+
+    const period = form.period ?? '';
+    const currentPeriod = new Date().toISOString().slice(0, 7);
+
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period) ||
+        period > currentPeriod) {
+      return false;
+    }
+
+    return (
+      form.departmentCode === emp.departmentCode &&
+      Number(form.employeeNumber) === emp.employeeNumber
+    );
   });
 
 
