@@ -7,27 +7,33 @@ namespace BonusManagement.Tests;
 
 public class BonusServiceTests
 {
-    [Fact]
-    public async Task CreateAsync_BonoFijo_CalculaImportesCorrectamente()
+    
+    private static Employee CrearEmpleadoActivo(
+        decimal sueldo = 5000m,
+        decimal tasaImpuesto = 8m)
     {
-        // Arrange: empleado activo con sueldo de S/ 5,000
-        var employee = new Employee
+        return new Employee
         {
             DepartmentCode = "TECH1",
             EmployeeNumber = 101,
             FullName = "Andrea Torres Vega",
             HireDate = new DateTime(2020, 1, 15),
-            MonthlySalary = 5000m,
-            TaxRate = 8m,
+            MonthlySalary = sueldo,
+            TaxRate = tasaImpuesto,
             EmployeeStateCode = "0101"
         };
+    }
 
+    
+    private static Mock<IBonusRepository> CrearRepositorioParaRegistro(
+        Employee employee)
+    {
         var repositoryMock = new Mock<IBonusRepository>();
 
         repositoryMock
             .Setup(r => r.GetEmployeeAsync(
-                "TECH1",
-                101,
+                employee.DepartmentCode,
+                employee.EmployeeNumber,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(employee);
 
@@ -39,8 +45,8 @@ public class BonusServiceTests
 
         repositoryMock
             .Setup(r => r.ExistsActiveBonusAsync(
-                "TECH1",
-                101,
+                employee.DepartmentCode,
+                employee.EmployeeNumber,
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
@@ -49,6 +55,19 @@ public class BonusServiceTests
             .Setup(r => r.SaveChangesAsync(
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
+
+        return repositoryMock;
+    }
+
+
+
+    [Fact]
+    public async Task CreateAsync_BonoFijo_CalculaImportesCorrectamente()
+    {
+        // Arrange: empleado activo con sueldo de S/ 5,000
+        var employee = CrearEmpleadoActivo();
+
+        var repositoryMock = CrearRepositorioParaRegistro(employee);
 
         var service = new BonusService(repositoryMock.Object);
 
@@ -98,44 +117,9 @@ public class BonusServiceTests
     public async Task CreateAsync_BonoPorcentual_CalculaImportesCorrectamente()
     {
         // Arrange
-        var employee = new Employee
-        {
-            DepartmentCode = "TECH1",
-            EmployeeNumber = 101,
-            FullName = "Andrea Torres Vega",
-            HireDate = new DateTime(2020, 1, 15),
-            MonthlySalary = 5000m,
-            TaxRate = 8m,
-            EmployeeStateCode = "0101"
-        };
+        var employee = CrearEmpleadoActivo();
 
-        var repositoryMock = new Mock<IBonusRepository>();
-
-        repositoryMock
-            .Setup(r => r.GetEmployeeAsync(
-                "TECH1",
-                101,
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(employee);
-
-        repositoryMock
-            .Setup(r => r.IsActiveReasonAsync(
-                "000001",
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        repositoryMock
-            .Setup(r => r.ExistsActiveBonusAsync(
-                "TECH1",
-                101,
-                It.IsAny<string>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
-
-        repositoryMock
-            .Setup(r => r.SaveChangesAsync(
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1);
+        var repositoryMock = CrearRepositorioParaRegistro(employee);
 
         var service = new BonusService(repositoryMock.Object);
 
@@ -186,39 +170,9 @@ public class BonusServiceTests
         string expectedGross)
     {
         // Arrange
-        var employee = new Employee
-        {
-            DepartmentCode = "TECH1",
-            EmployeeNumber = 101,
-            FullName = "Andrea Torres Vega",
-            HireDate = new DateTime(2020, 1, 15),
-            MonthlySalary = 5000m,
-            TaxRate = 0m,
-            EmployeeStateCode = "0101"
-        };
+        var employee = CrearEmpleadoActivo(tasaImpuesto: 0m);
 
-        var repositoryMock = new Mock<IBonusRepository>();
-
-        repositoryMock
-            .Setup(r => r.GetEmployeeAsync(
-                "TECH1",
-                101,
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(employee);
-
-        repositoryMock
-            .Setup(r => r.IsActiveReasonAsync(
-                "000001",
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        repositoryMock
-            .Setup(r => r.ExistsActiveBonusAsync(
-                "TECH1",
-                101,
-                It.IsAny<string>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+        var repositoryMock = CrearRepositorioParaRegistro(employee);
 
         var service = new BonusService(repositoryMock.Object);
 
@@ -255,16 +209,12 @@ public class BonusServiceTests
     public async Task CreateAsync_EmpleadoInactivo_LanzaBusinessException()
     {
         // Arrange
-        var employee = new Employee
-        {
-            DepartmentCode = "VENTA",
-            EmployeeNumber = 202,
-            FullName = "Rosa Medina Quispe",
-            HireDate = new DateTime(2020, 1, 15),
-            MonthlySalary = 4000m,
-            TaxRate = 8m,
-            EmployeeStateCode = "0102"
-        };
+        var employee = CrearEmpleadoActivo();
+        employee.DepartmentCode = "VENTA";
+        employee.EmployeeNumber = 202;
+        employee.FullName = "Rosa Medina Quispe";
+        employee.MonthlySalary = 4000m;
+        employee.EmployeeStateCode = "0102";
 
         var repositoryMock = new Mock<IBonusRepository>();
 
@@ -320,34 +270,13 @@ public class BonusServiceTests
     public async Task CreateAsync_BonoDuplicado_LanzaBusinessException()
     {
         // Arrange
-        var employee = new Employee
-        {
-            DepartmentCode = "TECH1",
-            EmployeeNumber = 101,
-            FullName = "Andrea Torres Vega",
-            HireDate = new DateTime(2020, 1, 15),
-            MonthlySalary = 5000m,
-            TaxRate = 8m,
-            EmployeeStateCode = "0101"
-        };
+        var employee = CrearEmpleadoActivo();
 
-        var repositoryMock = new Mock<IBonusRepository>();
+        
+        var repositoryMock = CrearRepositorioParaRegistro(employee);
 
-        repositoryMock
-            .Setup(r => r.GetEmployeeAsync(
-                "TECH1",
-                101,
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(employee);
-
-        repositoryMock
-            .Setup(r => r.IsActiveReasonAsync(
-                "000001",
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        // Simulamos que ya existe un bono activo
-        // para este empleado y periodo.
+        // Sobrescribimos únicamente el comportamiento
+        // que necesita esta prueba.
         repositoryMock
             .Setup(r => r.ExistsActiveBonusAsync(
                 "TECH1",
@@ -355,6 +284,7 @@ public class BonusServiceTests
                 "2026-07",
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
+
 
         var service = new BonusService(repositoryMock.Object);
 
@@ -730,16 +660,7 @@ public class BonusServiceTests
     public async Task CreateAsync_BonoFijoSuperaSueldo_LanzaBusinessException()
     {
         // Arrange
-        var employee = new Employee
-        {
-            DepartmentCode = "TECH1",
-            EmployeeNumber = 101,
-            FullName = "Andrea Torres Vega",
-            HireDate = new DateTime(2020, 1, 15),
-            MonthlySalary = 5000m,
-            TaxRate = 8m,
-            EmployeeStateCode = "0101"
-        };
+        var employee = CrearEmpleadoActivo();
 
         var repositoryMock = new Mock<IBonusRepository>();
 
@@ -804,16 +725,7 @@ public class BonusServiceTests
     public async Task CreateAsync_PorcentajeMayorA100_LanzaBusinessException()
     {
         // Arrange
-        var employee = new Employee
-        {
-            DepartmentCode = "TECH1",
-            EmployeeNumber = 101,
-            FullName = "Andrea Torres Vega",
-            HireDate = new DateTime(2020, 1, 15),
-            MonthlySalary = 5000m,
-            TaxRate = 8m,
-            EmployeeStateCode = "0101"
-        };
+        var employee = CrearEmpleadoActivo();
 
         var repositoryMock = new Mock<IBonusRepository>();
 
@@ -934,6 +846,64 @@ public class BonusServiceTests
             ),
             Times.Never
         );
+    }
+
+    
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task BonoEliminado_NoPermiteCancelarNiEliminar(
+        bool cancelar)
+    {
+        // Arrange
+        const int bonusId = 20;
+
+        var repositoryMock = new Mock<IBonusRepository>();
+
+        // Simula el filtro !IsDeleted del repositorio:
+        // un bono eliminado no se devuelve.
+        repositoryMock
+            .Setup(r => r.GetByIdAsync(
+                bonusId,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Bonus?)null);
+
+        var service = new BonusService(repositoryMock.Object);
+
+        // Act
+        var exception = await Assert.ThrowsAsync<
+            BonusTest.Domain.Exceptions.BusinessException>(
+            async () =>
+            {
+                if (cancelar)
+                {
+                    await service.CancelAsync(
+                        bonusId,
+                        "abel.alvarado",
+                        CancellationToken.None);
+                }
+                else
+                {
+                    await service.DeleteAsync(
+                        bonusId,
+                        "abel.alvarado",
+                        CancellationToken.None);
+                }
+            });
+
+        // Assert
+        Assert.Equal("BONUS_NOT_FOUND", exception.Code);
+
+        repositoryMock.Verify(
+            r => r.GetByIdAsync(
+                bonusId,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        repositoryMock.Verify(
+            r => r.SaveChangesAsync(
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
 
