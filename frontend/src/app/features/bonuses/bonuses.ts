@@ -1,6 +1,7 @@
 
 import { Component, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { DecimalPipe } from '@angular/common';
 
 import { Bonus } from '../../core/models/bonus';
 import { MasterStateCodes } from '../../core/models/catalog';
@@ -9,6 +10,7 @@ import { CatalogApi } from '../../core/services/catalog-api';
 
 @Component({
   selector: 'app-bonuses',
+  imports: [DecimalPipe],
   templateUrl: './bonuses.html',
   styleUrl: './bonuses.css',
 })
