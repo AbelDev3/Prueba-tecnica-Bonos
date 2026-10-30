@@ -274,18 +274,23 @@
 
         </div>
 
+        @if (saveError()) {
+          <p class="error-message">{{ saveError() }}</p>
+        }
+
         <footer class="modal-footer">
           <button type="button" (click)="closeModal()">
             Cancelar
           </button>
-
+          
           <button
             type="button"
             class="btn btn-primary"
-            [disabled]="!canSaveBonus()">
-            Guardar bono
+            (click)="saveBonus()"
+            [disabled]="!canSaveBonus() || savingBonus()">
+            {{ savingBonus() ? 'Guardando...' : 'Guardar bono' }}
           </button>
-          
+
         </footer>
       </form>
     </section>

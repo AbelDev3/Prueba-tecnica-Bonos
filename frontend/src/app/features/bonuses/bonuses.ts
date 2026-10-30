@@ -160,6 +160,8 @@ export class Bonuses {
     );
   });
 
+  protected readonly savingBonus = signal(false);
+  protected readonly saveError = signal('');
 
   constructor() {
     this.loadBonuses();
@@ -216,6 +218,7 @@ export class Bonuses {
     this.employee.set(null);
     this.employeeError.set('');
     this.showModal.set(true);
+    this.saveError.set('');
   }
 
   protected closeModal(): void {
@@ -259,5 +262,48 @@ export class Bonuses {
       }
     });
   }
+
+  
+  protected saveBonus(): void {
+    if (!this.canSaveBonus() || this.savingBonus()) {
+      return;
+    }
+
+    const form = this.bonusForm.getRawValue();
+
+    this.savingBonus.set(true);
+    this.saveError.set('');
+
+    this.bonusApi.createBonus(
+      {
+        departmentCode: form.departmentCode,
+        employeeNumber: Number(form.employeeNumber),
+        period: form.period,
+        bonusTypeId: Number(form.bonusTypeId),
+        bonusValue: Number(form.bonusValue),
+        reasonCode: form.reasonCode
+      },
+      'ADMIN'
+    ).subscribe({
+      next: response => {
+        this.savingBonus.set(false);
+        this.closeModal();
+
+        this.pageNumber.set(1);
+        this.loadBonuses();
+
+        alert(`Bono N.º ${response.bonusId} registrado correctamente.`);
+      },
+      error: error => {
+        this.savingBonus.set(false);
+
+        this.saveError.set(
+          error.error?.description ??
+          'No se pudo registrar el bono.'
+        );
+      }
+    });
+  }
+
 
 }
