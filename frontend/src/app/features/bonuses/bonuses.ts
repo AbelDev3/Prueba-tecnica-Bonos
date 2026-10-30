@@ -17,6 +17,12 @@ import { CatalogApi } from '../../core/services/catalog-api';
 export class Bonuses {
   private readonly catalogApi = inject(CatalogApi);
   private readonly bonusApi = inject(BonusApi);
+  
+  protected readonly selectedDepartment = signal('');
+  protected readonly selectedState = signal('');
+
+  protected readonly selectedEmployee = signal('');
+  protected readonly selectedPeriod = signal('');
 
   protected readonly departments = toSignal(
     this.catalogApi.getDepartments(),
@@ -45,7 +51,13 @@ export class Bonuses {
     this.loading.set(true);
     this.errorMessage.set('');
 
+    const employeeText = this.selectedEmployee().trim();
+
     this.bonusApi.getBonuses({
+      departmentCode: this.selectedDepartment(),
+      stateCode: this.selectedState(),
+      employeeNumber: employeeText ? Number(employeeText) : undefined,
+      period: this.selectedPeriod(),
       pageIndex: this.pageNumber(),
       pageSize: this.pageSize
     }).subscribe({
@@ -74,5 +86,10 @@ export class Bonuses {
       this.pageNumber.update(page => page - 1);
       this.loadBonuses();
     }
+  }
+
+  protected onFilterChange(): void {
+    this.pageNumber.set(1);
+    this.loadBonuses();
   }
 }

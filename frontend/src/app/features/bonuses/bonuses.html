@@ -10,7 +10,9 @@
   <div class="filters">
     <label>
       Área
-      <select>
+      <select
+      [value]="selectedDepartment()"
+      (change)="selectedDepartment.set($any($event.target).value); onFilterChange()">
         <option value="">Todas</option>
         @for (department of departments(); track department.departmentCode) {
           <option [value]="department.departmentCode">
@@ -22,7 +24,9 @@
 
     <label>
       Estado
-      <select>
+      <select
+      [value]="selectedState()"
+      (change)="selectedState.set($any($event.target).value); onFilterChange()">
         <option value="">Todos</option>
         @for (state of bonusStates(); track state.stateCode) {
           <option [value]="state.stateCode">
@@ -31,6 +35,28 @@
         }
       </select>
     </label>
+    
+    <label>
+      N.º de empleado
+      <input
+        type="number"
+        min="1"
+        placeholder="Ej. 101"
+        [value]="selectedEmployee()"
+        (input)="selectedEmployee.set($any($event.target).value)"
+        (change)="onFilterChange()"
+      />
+    </label>
+
+    <label>
+      Periodo
+      <input
+        type="month"
+        [value]="selectedPeriod()"
+        (change)="selectedPeriod.set($any($event.target).value); onFilterChange()"
+      />
+    </label>
+
   </div>
 
   @if (loading()) {

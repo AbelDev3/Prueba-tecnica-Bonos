@@ -27,3 +27,134 @@
 .placeholder {
   color: var(--text-muted);
 }
+
+/* Contenedor de tabla */
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+/* Tabla de bonos */
+.bonus-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.bonus-table th,
+.bonus-table td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.bonus-table thead {
+  background-color: #f1f5f9;
+}
+
+.bonus-table th {
+  font-weight: 600;
+  color: #334155;
+}
+
+.bonus-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.bonus-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Importes monetarios */
+.bonus-table th:nth-child(6),
+.bonus-table th:nth-child(7),
+.bonus-table th:nth-child(8),
+.bonus-table th:nth-child(9),
+.bonus-table td:nth-child(6),
+.bonus-table td:nth-child(7),
+.bonus-table td:nth-child(8),
+.bonus-table td:nth-child(9) {
+  text-align: right;
+}
+
+/* Sin registros */
+.empty-message {
+  text-align: center !important;
+  padding: 24px !important;
+  color: #64748b;
+}
+
+/* Paginación */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pagination-controls button {
+  padding: 8px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+}
+
+.pagination-controls button:hover:not(:disabled) {
+  background-color: #f1f5f9;
+}
+
+.pagination-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Mensajes */
+.error-message {
+  color: #b91c1c;
+  padding: 12px;
+  background-color: #fef2f2;
+  border-radius: 6px;
+}
+
+/* Adaptación a pantallas pequeñas */
+@media (max-width: 768px) {
+  .card-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .pagination {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.filters input {
+  min-width: 180px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font: inherit;
+  background-color: #fff;
+  color: #0f172a;
+}
+
+.filters input:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
