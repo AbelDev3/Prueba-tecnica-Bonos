@@ -230,4 +230,91 @@ public class BonusService(IBonusRepository repository)
                 "USER_REQUIRED",
                 "El usuario es obligatorio.");
     }
+
+    public async Task PayAsync(
+        int bonusId,
+        string userCode,
+        CancellationToken cancellationToken)
+    {
+        ValidateUser(userCode);
+
+        var bonus = await repository.GetByIdAsync(
+            bonusId, cancellationToken);
+
+        if (bonus is null)
+        {
+            throw new BusinessException(
+                "BONUS_NOT_FOUND",
+                "El bono no existe.");
+        }
+
+        if (bonus.StateCode != "0201")
+        {
+            throw new BusinessException(
+                "INVALID_BONUS_STATE",
+                "Solo se pueden pagar bonos registrados.");
+        }
+
+        var projects = await repository.GetEmployeeProjectHoursAsync(
+            bonus.DepartmentCode,
+            bonus.EmployeeNumber,
+            cancellationToken);
+
+        if (projects.Count == 0)
+        {
+            throw new BusinessException(
+                "PROJECTS_NOT_FOUND",
+                "El empleado no tiene proyectos registrados.");
+        }
+
+        if (projects.Any(x => x.Hours <= 0))
+        {
+            throw new BusinessException(
+                "INVALID_PROJECT_HOURS",
+                "Todos los proyectos deben tener horas mayores que cero.");
+        }
+
+        var totalHours = projects.Sum(x => x.Hours);
+
+        var distributions = new List<BonusProjectDistribution>();
+        decimal accumulated = 0m;
+
+        for (var i = 0; i < projects.Count; i++)
+        {
+            var project = projects[i];
+            var isLast = i == projects.Count - 1;
+
+            decimal remaining = bonus.GrossAmount - accumulated;
+
+            decimal amount = isLast
+                ? remaining
+                : Math.Min(
+                    remaining,
+                    Math.Round(
+                        bonus.GrossAmount * project.Hours / totalHours,
+                        2,
+                        MidpointRounding.AwayFromZero));
+
+
+            distributions.Add(new BonusProjectDistribution
+            {
+                BonusId = bonus.BonusId,
+                EmployeeProjectHoursId = project.EmployeeProjectHoursId,
+                ProjectName = project.ProjectName,
+                Hours = project.Hours,
+                DistributedAmount = amount
+            });
+
+            accumulated += amount;
+        }
+
+        bonus.ModifiedBy = userCode.Trim();
+        bonus.ModifiedAt = DateTime.UtcNow;
+
+        await repository.PayBonusAsync(
+            bonus,
+            distributions,
+            cancellationToken);
+    }
+
 }

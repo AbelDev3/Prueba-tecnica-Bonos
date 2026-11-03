@@ -2,12 +2,13 @@
 using BonusTest.Application.Bonuses;
 using BonusTest.Domain.Entities;
 using Moq;
+using BonusTest.Domain.Exceptions;
 
 namespace BonusManagement.Tests;
 
 public class BonusServiceTests
 {
-    
+
     private static Employee CrearEmpleadoActivo(
         decimal sueldo = 5000m,
         decimal tasaImpuesto = 8m)
@@ -24,7 +25,7 @@ public class BonusServiceTests
         };
     }
 
-    
+
     private static Mock<IBonusRepository> CrearRepositorioParaRegistro(
         Employee employee)
     {
@@ -112,7 +113,7 @@ public class BonusServiceTests
         ), Times.Once);
     }
 
-    
+
     [Fact]
     public async Task CreateAsync_BonoPorcentual_CalculaImportesCorrectamente()
     {
@@ -160,7 +161,7 @@ public class BonusServiceTests
         ), Times.Once);
     }
 
-    
+
     [Theory]
     [InlineData("100.005", "100.01")]
     [InlineData("100.004", "100.00")]
@@ -204,7 +205,7 @@ public class BonusServiceTests
         Assert.Equal(0m, result.TaxAmount);
     }
 
-    
+
     [Fact]
     public async Task CreateAsync_EmpleadoInactivo_LanzaBusinessException()
     {
@@ -265,14 +266,14 @@ public class BonusServiceTests
         );
     }
 
-    
+
     [Fact]
     public async Task CreateAsync_BonoDuplicado_LanzaBusinessException()
     {
         // Arrange
         var employee = CrearEmpleadoActivo();
 
-        
+
         var repositoryMock = CrearRepositorioParaRegistro(employee);
 
         // Sobrescribimos únicamente el comportamiento
@@ -338,7 +339,7 @@ public class BonusServiceTests
         );
     }
 
-    
+
     [Fact]
     public async Task CancelAsync_BonoRegistrado_CancelaYRegistraAuditoria()
     {
@@ -397,7 +398,7 @@ public class BonusServiceTests
         );
     }
 
-    
+
     [Fact]
     public async Task DeleteAsync_BonoRegistrado_RealizaEliminacionLogica()
     {
@@ -470,7 +471,7 @@ public class BonusServiceTests
         );
     }
 
-    
+
     [Fact]
     public async Task CancelAsync_BonoYaCancelado_LanzaBusinessException()
     {
@@ -528,7 +529,7 @@ public class BonusServiceTests
         );
     }
 
-    
+
     [Fact]
     public async Task DeleteAsync_BonoCancelado_LanzaBusinessException()
     {
@@ -593,7 +594,7 @@ public class BonusServiceTests
         );
     }
 
-    
+
     [Fact]
     public async Task CreateAsync_PeriodoFuturo_LanzaBusinessException()
     {
@@ -655,7 +656,7 @@ public class BonusServiceTests
         );
     }
 
-    
+
     [Fact]
     public async Task CreateAsync_BonoFijoSuperaSueldo_LanzaBusinessException()
     {
@@ -720,7 +721,7 @@ public class BonusServiceTests
         );
     }
 
-    
+
     [Fact]
     public async Task CreateAsync_PorcentajeMayorA100_LanzaBusinessException()
     {
@@ -786,7 +787,7 @@ public class BonusServiceTests
         );
     }
 
-    
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -848,7 +849,7 @@ public class BonusServiceTests
         );
     }
 
-    
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -902,6 +903,472 @@ public class BonusServiceTests
 
         repositoryMock.Verify(
             r => r.SaveChangesAsync(
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task PayAsync_DosProyectos_DistribuyeBrutoCorrectamente()
+    {
+        // Arrange
+        var bonus = new Bonus
+        {
+            BonusId = 20,
+            DepartmentCode = "TECH1",
+            EmployeeNumber = 101,
+            GrossAmount = 617.50m,
+            StateCode = "0201",
+            CreatedBy = "candidato",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var projects = new List<EmployeeProjectHours>
+        {
+            new()
+            {
+                EmployeeProjectHoursId = 1,
+                DepartmentCode = "TECH1",
+                EmployeeNumber = 101,
+                ProjectName = "Portal de clientes",
+                Hours = 120m
+            },
+            new()
+            {
+                EmployeeProjectHoursId = 2,
+                DepartmentCode = "TECH1",
+                EmployeeNumber = 101,
+                ProjectName = "App móvil",
+                Hours = 40m
+            }
+        };
+
+        var repositoryMock = new Mock<IBonusRepository>();
+
+        repositoryMock
+            .Setup(r => r.GetByIdAsync(
+                20,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(bonus);
+
+        repositoryMock
+            .Setup(r => r.GetEmployeeProjectHoursAsync(
+                "TECH1",
+                101,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(projects);
+
+        var service = new BonusService(repositoryMock.Object);
+
+        // Act
+        await service.PayAsync(
+            20,
+            "abel.alvarado",
+            CancellationToken.None);
+
+        // Assert
+        repositoryMock.Verify(
+            r => r.PayBonusAsync(
+                It.Is<Bonus>(b =>
+                    b.BonusId == 20 &&
+                    b.ModifiedBy == "abel.alvarado" &&
+                    b.ModifiedAt != null),
+                It.Is<IReadOnlyCollection<BonusProjectDistribution>>(d =>
+                    d.Count == 2 &&
+                    d.Sum(x => x.DistributedAmount) == 617.50m &&
+                    d.Any(x =>
+                        x.ProjectName == "Portal de clientes" &&
+                        x.DistributedAmount == 463.13m) &&
+                    d.Any(x =>
+                        x.ProjectName == "App móvil" &&
+                        x.DistributedAmount == 154.37m)),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+
+    [Fact]
+    public async Task PayAsync_TresProyectos_AjustaRedondeoEnUltimoProyecto()
+    {
+        // Arrange
+        var bonus = new Bonus
+        {
+            BonusId = 21,
+            DepartmentCode = "TECH1",
+            EmployeeNumber = 101,
+            GrossAmount = 100m,
+            StateCode = "0201",
+            CreatedBy = "candidato",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var projects = new List<EmployeeProjectHours>
+        {
+            new()
+            {
+                EmployeeProjectHoursId = 1,
+                DepartmentCode = "TECH1",
+                EmployeeNumber = 101,
+                ProjectName = "Proyecto A",
+                Hours = 1m
+            },
+            new()
+            {
+                EmployeeProjectHoursId = 2,
+                DepartmentCode = "TECH1",
+                EmployeeNumber = 101,
+                ProjectName = "Proyecto B",
+                Hours = 1m
+            },
+            new()
+            {
+                EmployeeProjectHoursId = 3,
+                DepartmentCode = "TECH1",
+                EmployeeNumber = 101,
+                ProjectName = "Proyecto C",
+                Hours = 1m
+            }
+        };
+
+        var repositoryMock = new Mock<IBonusRepository>();
+
+        repositoryMock
+            .Setup(r => r.GetByIdAsync(
+                21,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(bonus);
+
+        repositoryMock
+            .Setup(r => r.GetEmployeeProjectHoursAsync(
+                "TECH1",
+                101,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(projects);
+
+        var service = new BonusService(repositoryMock.Object);
+
+        // Act
+        await service.PayAsync(
+            21,
+            "abel.alvarado",
+            CancellationToken.None);
+
+        // Assert
+        repositoryMock.Verify(
+            r => r.PayBonusAsync(
+                It.IsAny<Bonus>(),
+                It.Is<IReadOnlyCollection<BonusProjectDistribution>>(d =>
+                    d.Count == 3 &&
+                    d.Sum(x => x.DistributedAmount) == 100m &&
+                    d.Any(x =>
+                        x.ProjectName == "Proyecto A" &&
+                        x.DistributedAmount == 33.33m) &&
+                    d.Any(x =>
+                        x.ProjectName == "Proyecto B" &&
+                        x.DistributedAmount == 33.33m) &&
+                    d.Any(x =>
+                        x.ProjectName == "Proyecto C" &&
+                        x.DistributedAmount == 33.34m)),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+
+    [Fact]
+    public async Task PayAsync_UnSoloProyecto_AsignaTodoElBruto()
+    {
+        // Arrange
+        var bonus = new Bonus
+        {
+            BonusId = 22,
+            DepartmentCode = "TECH1",
+            EmployeeNumber = 101,
+            GrossAmount = 617.50m,
+            StateCode = "0201",
+            CreatedBy = "candidato",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var projects = new List<EmployeeProjectHours>
+        {
+            new()
+            {
+                EmployeeProjectHoursId = 1,
+                DepartmentCode = "TECH1",
+                EmployeeNumber = 101,
+                ProjectName = "Proyecto único",
+                Hours = 80m
+            }
+        };
+
+        var repositoryMock = new Mock<IBonusRepository>();
+
+        repositoryMock
+            .Setup(r => r.GetByIdAsync(
+                22,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(bonus);
+
+        repositoryMock
+            .Setup(r => r.GetEmployeeProjectHoursAsync(
+                "TECH1",
+                101,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(projects);
+
+        var service = new BonusService(repositoryMock.Object);
+
+        // Act
+        await service.PayAsync(
+            22,
+            "abel.alvarado",
+            CancellationToken.None);
+
+        // Assert
+        repositoryMock.Verify(
+            r => r.PayBonusAsync(
+                It.IsAny<Bonus>(),
+                It.Is<IReadOnlyCollection<BonusProjectDistribution>>(d =>
+                    d.Count == 1 &&
+                    d.Single().ProjectName == "Proyecto único" &&
+                    d.Single().DistributedAmount == 617.50m),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+
+    [Fact]
+    public async Task PayAsync_SinProyectos_LanzaErrorYNoPaga()
+    {
+        // Arrange
+        var bonus = new Bonus
+        {
+            BonusId = 23,
+            DepartmentCode = "TECH1",
+            EmployeeNumber = 101,
+            GrossAmount = 617.50m,
+            StateCode = "0201",
+            CreatedBy = "candidato",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var repositoryMock = new Mock<IBonusRepository>();
+
+        repositoryMock
+            .Setup(r => r.GetByIdAsync(
+                23,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(bonus);
+
+        repositoryMock
+            .Setup(r => r.GetEmployeeProjectHoursAsync(
+                "TECH1",
+                101,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<EmployeeProjectHours>());
+
+        var service = new BonusService(repositoryMock.Object);
+
+        // Act
+        var exception = await Assert.ThrowsAsync<BusinessException>(
+            () => service.PayAsync(
+                23,
+                "abel.alvarado",
+                CancellationToken.None));
+
+        // Assert
+        Assert.Equal("PROJECTS_NOT_FOUND", exception.Code);
+
+        repositoryMock.Verify(
+            r => r.PayBonusAsync(
+                It.IsAny<Bonus>(),
+                It.IsAny<IReadOnlyCollection<BonusProjectDistribution>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public async Task PayAsync_HorasInvalidas_LanzaErrorYNoPaga(
+        int invalidHours)
+    {
+        // Arrange
+        var bonus = new Bonus
+        {
+            BonusId = 24,
+            DepartmentCode = "TECH1",
+            EmployeeNumber = 101,
+            GrossAmount = 617.50m,
+            StateCode = "0201",
+            CreatedBy = "candidato",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var projects = new List<EmployeeProjectHours>
+        {
+            new()
+            {
+                EmployeeProjectHoursId = 1,
+                DepartmentCode = "TECH1",
+                EmployeeNumber = 101,
+                ProjectName = "Proyecto A",
+                Hours = 120m
+            },
+            new()
+            {
+                EmployeeProjectHoursId = 2,
+                DepartmentCode = "TECH1",
+                EmployeeNumber = 101,
+                ProjectName = "Proyecto B",
+                Hours = invalidHours
+            }
+        };
+
+        var repositoryMock = new Mock<IBonusRepository>();
+
+        repositoryMock
+            .Setup(r => r.GetByIdAsync(
+                24,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(bonus);
+
+        repositoryMock
+            .Setup(r => r.GetEmployeeProjectHoursAsync(
+                "TECH1",
+                101,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(projects);
+
+        var service = new BonusService(repositoryMock.Object);
+
+        // Act
+        var exception = await Assert.ThrowsAsync<BusinessException>(
+            () => service.PayAsync(
+                24,
+                "abel.alvarado",
+                CancellationToken.None));
+
+        // Assert
+        Assert.Equal("INVALID_PROJECT_HOURS", exception.Code);
+
+        repositoryMock.Verify(
+            r => r.PayBonusAsync(
+                It.IsAny<Bonus>(),
+                It.IsAny<IReadOnlyCollection<BonusProjectDistribution>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+
+    [Fact]
+    public async Task PayAsync_ImportePequeno_NoGeneraDistribucionesNegativas()
+    {
+        // Arrange
+        var bonus = new Bonus
+        {
+            BonusId = 25,
+            DepartmentCode = "TECH1",
+            EmployeeNumber = 101,
+            GrossAmount = 0.03m,
+            StateCode = "0201",
+            CreatedBy = "candidato",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var projects = Enumerable.Range(1, 5)
+            .Select(i => new EmployeeProjectHours
+            {
+                EmployeeProjectHoursId = i,
+                DepartmentCode = "TECH1",
+                EmployeeNumber = 101,
+                ProjectName = $"Proyecto {i}",
+                Hours = 1m
+            })
+            .ToList();
+
+        var repositoryMock = new Mock<IBonusRepository>();
+
+        repositoryMock
+            .Setup(r => r.GetByIdAsync(
+                25,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(bonus);
+
+        repositoryMock
+            .Setup(r => r.GetEmployeeProjectHoursAsync(
+                "TECH1",
+                101,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(projects);
+
+        var service = new BonusService(repositoryMock.Object);
+
+        // Act
+        await service.PayAsync(
+            25,
+            "abel.alvarado",
+            CancellationToken.None);
+
+        // Assert
+        repositoryMock.Verify(
+            r => r.PayBonusAsync(
+                It.IsAny<Bonus>(),
+                It.Is<IReadOnlyCollection<BonusProjectDistribution>>(d =>
+                    d.Count == 5 &&
+                    d.All(x => x.DistributedAmount >= 0m) &&
+                    d.Sum(x => x.DistributedAmount) == 0.03m),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+
+    [Fact]
+    public async Task PayAsync_BonoPagado_LanzaErrorYNoPaga()
+    {
+        // Arrange
+        var bonus = new Bonus
+        {
+            BonusId = 26,
+            DepartmentCode = "TECH1",
+            EmployeeNumber = 101,
+            GrossAmount = 617.50m,
+            StateCode = "0202",
+            CreatedBy = "candidato",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var repositoryMock = new Mock<IBonusRepository>();
+
+        repositoryMock
+            .Setup(r => r.GetByIdAsync(
+                26,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(bonus);
+
+        var service = new BonusService(repositoryMock.Object);
+
+        // Act
+        var exception = await Assert.ThrowsAsync<BusinessException>(
+            () => service.PayAsync(
+                26,
+                "abel.alvarado",
+                CancellationToken.None));
+
+        // Assert
+        Assert.Equal("INVALID_BONUS_STATE", exception.Code);
+
+        repositoryMock.Verify(
+            r => r.GetEmployeeProjectHoursAsync(
+                It.IsAny<string>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+
+        repositoryMock.Verify(
+            r => r.PayBonusAsync(
+                It.IsAny<Bonus>(),
+                It.IsAny<IReadOnlyCollection<BonusProjectDistribution>>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
     }

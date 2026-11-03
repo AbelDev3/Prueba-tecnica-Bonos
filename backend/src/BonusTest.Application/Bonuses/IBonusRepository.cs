@@ -42,4 +42,15 @@ public interface IBonusRepository
     // Persistir cambios
     Task<int> SaveChangesAsync(
         CancellationToken cancellationToken);
+
+    Task<List<EmployeeProjectHours>> GetEmployeeProjectHoursAsync(
+        string departmentCode,
+        int employeeNumber,
+        CancellationToken cancellationToken);
+
+    Task PayBonusAsync(
+        Bonus bonus,
+        IReadOnlyCollection<BonusProjectDistribution> distributions,
+        CancellationToken cancellationToken);
+
 }

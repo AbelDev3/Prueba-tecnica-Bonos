@@ -306,6 +306,16 @@
   transition: background-color 0.2s;
 }
 
+/* Acción: pagar bono */
+.pay-button {
+  color: #166534;
+  border-color: #86efac;
+}
+
+.pay-button:hover:not(:disabled) {
+  background-color: #f0fdf4;
+}
+
 .cancel-button {
   color: #92400e;
   border-color: #fcd34d;

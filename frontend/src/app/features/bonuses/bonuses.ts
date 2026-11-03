@@ -20,7 +20,7 @@ import { BonusEmployee } from '../../core/models/bonus';
 export class Bonuses {
   private readonly catalogApi = inject(CatalogApi);
   private readonly bonusApi = inject(BonusApi);
-  
+
   protected readonly selectedDepartment = signal('');
   protected readonly selectedState = signal('');
 
@@ -45,7 +45,7 @@ export class Bonuses {
   protected readonly pageSize = 10;
   protected readonly totalPages = signal(0);
   protected readonly totalRecords = signal(0);
-  
+
   private readonly fb = inject(FormBuilder);
 
   protected readonly showModal = signal(false);
@@ -72,7 +72,7 @@ export class Bonuses {
     reasonCode: ['', Validators.required]
   });
 
-  
+
   private readonly formValues = toSignal(
     this.bonusForm.valueChanges,
     { initialValue: this.bonusForm.getRawValue() }
@@ -118,7 +118,7 @@ export class Bonuses {
     return { gross, tax, net };
   });
 
-  
+
   protected readonly canSaveBonus = computed(() => {
     const emp = this.employee();
     const form = this.formValues();
@@ -165,6 +165,8 @@ export class Bonuses {
 
   protected readonly cancellingBonusId = signal<number | null>(null);
   protected readonly deletingBonusId = signal<number | null>(null);
+
+  protected readonly payingBonusId = signal<number | null>(null);
 
   constructor() {
     this.loadBonuses();
@@ -266,7 +268,7 @@ export class Bonuses {
     });
   }
 
-  
+
   protected saveBonus(): void {
     if (!this.canSaveBonus() || this.savingBonus()) {
       return;
@@ -306,10 +308,11 @@ export class Bonuses {
       }
     });
   }
-  
+
   protected cancelBonus(bonus: Bonus): void {
     if (
       bonus.stateCode !== '0201' ||
+      this.payingBonusId() !== null ||
       this.cancellingBonusId() !== null
     ) {
       return;
@@ -341,10 +344,50 @@ export class Bonuses {
       }
     });
   }
-  
+
+  protected payBonus(bonus: Bonus): void {
+    if (
+      bonus.stateCode !== '0201' ||
+      this.payingBonusId() !== null ||
+      this.cancellingBonusId() !== null ||
+      this.deletingBonusId() !== null
+    ) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `¿Estás seguro de pagar el bono N.º ${bonus.bonusId}?\n\n` +
+      `Importe bruto: S/ ${bonus.grossAmount.toFixed(2)}\n\n` +
+      'El importe se distribuirá proporcionalmente entre los proyectos ' +
+      'del empleado y el bono cambiará a estado Pagado.'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.payingBonusId.set(bonus.bonusId);
+
+    this.bonusApi.payBonus(bonus.bonusId).subscribe({
+      next: () => {
+        this.payingBonusId.set(null);
+        this.loadBonuses();
+
+        window.alert(
+          `El bono N.º ${bonus.bonusId} fue pagado correctamente.`
+        );
+      },
+      error: () => {
+        this.payingBonusId.set(null);
+        // El interceptor HTTP ya muestra los errores de la API.
+      }
+    });
+  }
+
   protected deleteBonus(bonus: Bonus): void {
     if (
       bonus.stateCode !== '0201' ||
+      this.payingBonusId() !== null ||
       this.deletingBonusId() !== null ||
       this.cancellingBonusId() !== null
     ) {

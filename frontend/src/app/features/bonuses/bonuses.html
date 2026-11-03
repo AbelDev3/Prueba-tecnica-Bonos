@@ -103,12 +103,35 @@
               <td>{{ bonus.stateCode }}</td>
               
               <td class="actions-cell">
+
+                <button
+                  type="button"
+                  class="action-button pay-button"
+                  (click)="payBonus(bonus)"
+                  [disabled]="
+                    bonus.stateCode !== '0201' ||
+                    payingBonusId() !== null ||
+                    cancellingBonusId() !== null ||
+                    deletingBonusId() !== null
+                  "
+                  [title]="'Pagar bono N.º ' + bonus.bonusId">
+                  {{
+                    payingBonusId() === bonus.bonusId
+                      ? 'Pagando...'
+                      : 'Pagar'
+                  }}
+                </button>
                 
                 <button
                   type="button"
                   class="action-button cancel-button"
                   (click)="cancelBonus(bonus)"
-                  [disabled]="bonus.stateCode !== '0201' || cancellingBonusId() !== null"
+                  [disabled]="
+                    bonus.stateCode !== '0201' ||
+                    cancellingBonusId() !== null ||
+                    deletingBonusId() !== null ||
+                    payingBonusId() !== null
+                  "
                   [title]="'Cancelar bono N.º ' + bonus.bonusId">
                   {{
                     cancellingBonusId() === bonus.bonusId
@@ -123,6 +146,7 @@
                   (click)="deleteBonus(bonus)"
                   [disabled]="
                     bonus.stateCode !== '0201' ||
+                    payingBonusId() !== null ||
                     deletingBonusId() !== null ||
                     cancellingBonusId() !== null
                   "
@@ -139,7 +163,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="10" class="empty-message">
+              <td colspan="11" class="empty-message">
                 No se encontraron bonos.
               </td>
             </tr>

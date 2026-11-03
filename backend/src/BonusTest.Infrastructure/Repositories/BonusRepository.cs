@@ -4,6 +4,7 @@ using BonusTest.Application.Common;
 using BonusTest.Domain.Entities;
 using BonusTest.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using BonusTest.Domain.Exceptions;
 
 namespace BonusTest.Infrastructure.Repositories;
 
@@ -139,6 +140,65 @@ public class BonusRepository(AppDbContext context) : IBonusRepository
         CancellationToken cancellationToken)
     {
         await context.Bonuses.AddAsync(bonus, cancellationToken);
+    }
+
+    public Task<List<EmployeeProjectHours>> GetEmployeeProjectHoursAsync(
+        string departmentCode,
+        int employeeNumber,
+        CancellationToken cancellationToken)
+    {
+        return context.EmployeeProjectHours
+            .AsNoTracking()
+            .Where(x =>
+                x.DepartmentCode == departmentCode &&
+                x.EmployeeNumber == employeeNumber)
+            .OrderBy(x => x.EmployeeProjectHoursId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task PayBonusAsync(
+        Bonus bonus,
+        IReadOnlyCollection<BonusProjectDistribution> distributions,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction =
+            await context.Database.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            // Actualización condicional para impedir pagos duplicados.
+            var updatedRows = await context.Bonuses
+                .Where(x =>
+                    x.BonusId == bonus.BonusId &&
+                    !x.IsDeleted &&
+                    x.StateCode == "0201")
+                .ExecuteUpdateAsync(
+                    setters => setters
+                        .SetProperty(x => x.StateCode, "0202")
+                        .SetProperty(x => x.ModifiedBy, bonus.ModifiedBy)
+                        .SetProperty(x => x.ModifiedAt, bonus.ModifiedAt),
+                    cancellationToken);
+
+            if (updatedRows != 1)
+            {
+                throw new BusinessException(
+                    "INVALID_BONUS_STATE",
+                    "El bono ya no está disponible para pago.");
+            }
+
+            await context.BonusProjectDistributions.AddRangeAsync(
+                distributions,
+                cancellationToken);
+
+            await context.SaveChangesAsync(cancellationToken);
+
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            throw;
+        }
     }
 
     public Task<int> SaveChangesAsync(
